@@ -1,0 +1,14 @@
+{
+    "displayName": "محمد عبدالرحمان",
+    "dateOfBirth": "2010-09-16T00:00:00+00:00",
+    "gender": "male",
+    "avatar": "blah.jpg",
+    "lastGameDate": null,
+    "score": 1340,
+    "data": { },
+    "config": {
+        "introURL": "https://assets.zidoworld.com/statics/Intro_Game_720.mp4",
+        "enableIntroVideo": true,
+        "allowedDomains": ["zidoworld.com", "localhost"]
+    }
+}

@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Birds game</title>
+
+    <style>
+        body {
+            margin: 0;
+            /* overflow: hidden; */
+            background: lightblue;
+        }
+
+        iframe {
+            width: 80%;
+            min-height: 500px;
+            display: block;
+            position: relative;
+            border: 1px solid black;
+            margin: 5px;
+        }
+
+        .form-button {
+            width: 20%;
+            font-size: 1.4em;
+            font-weight: 700;
+        }
+    </style>
+</head>
+
+<body onload="initGameSelect(); initFormFields()">
+    <iframe src="" id="iframe"></iframe>
+    <!-- <hr> -->
+    <form id="iframeForm">
+        <select id="gameSelect" />
+        <input type="submit" value="Switch game" />
+    </form>
+    <hr>
+    <form method="POST" action="" id="form">
+        <div>
+            <label for="code">Return code</label>
+            <input type="text" id="code" />
+
+            <h2>Kid</h2>
+            <label for="name">Display Name</label>
+            <input type="text" id="name" />
+            <label for="dateOfBirth">Birth date</label>
+            <input type="text" id="dateOfBirth" />
+            <label for="avatar">Avatar</label>
+            <input type="text" id="avatar" />
+            <input type="radio" name="gender" value="male" />Male
+            <input type="radio" name="gender" value="female" />Female
+
+            <h2>Config</h2>
+            <label for="enableIntroVideo">Enable intro</label>
+            <input type="checkbox" id="enableIntroVideo" />
+            <label for="introURL">Intro URL</label>
+            <input type="text" id="introURL" />
+            <span>Allowed Domains :
+                <input type="checkbox" name="origin" value="localhost" />localhost
+                <input type="checkbox" name="origin" value="zidoworld.com" />zidoworld.com
+                <input type="checkbox" name="origin" value="*" />*
+            </span>
+
+            <h2>Updated by the game</h2>
+            <label for="lastGameDate">Last game date</label>
+            <input type="text" id="lastGameDate" />
+            <label for="score">Score</label>
+            <input type="text" id="score" />
+            <label for="gameData">Game data (JSON)</label>
+            <textarea id="gameData" rows="3"></textarea>
+
+            <hr>
+            <input class='form-button' type="submit" value="Apply API data" />
+            <button class='form-button' type="button" onclick="applyAndRefresh()">Apply & refresh game</button>
+            <button class='form-button' type="button" onclick="initFormFields()">Refresh fields</button>
+            <button class='form-button' type="button" onclick="resetDefaults()">Reset defaults</button>
+
+        </div>
+    </form>
+    <script>
+        const GAME_DIR = 'games/'
+        function inject() {
+            var iframe = document.getElementById('iframe');
+            console.log('DEMO SERVER', 'send iframe message', iframe.src)
+            if (!iframe.src || iframe.src.indexOf(GAME_DIR) === -1) return;
+            iframe.contentWindow.postMessage({
+                gameId: "59b11348db3d552416092c07",
+                token: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.XGJTuaUrTxK5lsgiHfn7FOARAVP41h7pu9Zi5-ys8-s",
+                api: "http://localhost:32360/api"
+            }, '*');
+        }
+
+        function initGameSelect() {
+            fetch('/api/folders')
+                .then((resp) => resp.json()) // Transform the data into json
+                .then(folderArray => {
+                    console.log('DEMO SERVER', 'load folders', folderArray)
+                    // Add each game folder as a select option
+                    const gameSelect = document.getElementById('gameSelect')
+                    for (var i = 0; i < folderArray.length; i++) {
+                        var option = document.createElement("option");
+                        option.text = folderArray[i];
+                        gameSelect.add(option);
+                    }
+                    // init iframe with first game
+                    switchGame()
+                })
+                .catch(err => {
+                    console.log('DEMO SERVER', err)
+                })
+        }
+
+        function switchGame(event) {
+            console.log('DEMO SERVER', 'switch game')
+            if (event) event.preventDefault()
+            var iframe = document.getElementById('iframe');
+            const gameSelect = document.getElementById('gameSelect')
+
+            // This will trigger the iframe.onload method --> inject
+            const nextSrc = GAME_DIR + gameSelect.options[gameSelect.selectedIndex].text + '/';
+            iframe.src = nextSrc;
+        }
+
+        function initFormFields() {
+            fetch('/api/data')
+                .then((res) => res.json()) // Transform the data into json
+                .then(resBody => {
+                    console.log('DEMO SERVER', 'init form fields', resBody)
+                    // Add each game folder as a select option
+                    var form = document.getElementById('form')
+                    const { returnCode, data } = resBody
+                    console.log(data)
+                    // fill form fields with data
+                    form.code.value = returnCode
+                    form.name.value = data.displayName
+                    form.gender.value = data.gender
+                    form.score.value = data.score
+                    form.avatar.value = data.avatar
+                    form.enableIntroVideo.checked = data.config.enableIntroVideo
+                    form.introURL.value = data.config.introURL
+                    checkBoxes(form.origin, data.config.allowedDomains)
+                    form.lastGameDate.value = formatDate(data.lastGameDate)
+                    form.dateOfBirth.value = formatDate(data.dateOfBirth)
+                    form.gameData.value = JSON.stringify(data.data)
+                })
+                .catch(err => {
+                    console.log('DEMO SERVER', err)
+                })
+        }
+
+        function resetDefaults() {
+            console.log('reset default')
+            // The parameters we are gonna pass to the fetch function
+            postData('/api/data', { default: true })
+                .then(function (response) {
+                    initFormFields()
+                })
+                .catch(function (error) {
+                    console.log('DEMO SERVER', error);
+                });
+        }
+
+        function submitForm(event) {
+            if (event) event.preventDefault()
+            var form = document.getElementById('form')
+            return postData('/api/data', {
+                code: form.code.value,
+                name: form.name.value,
+                gender: form.gender.value,
+                score: form.score.value,
+                avatar: form.avatar.value,
+                enableIntroVideo: form.enableIntroVideo.checked,
+                introURL: form.introURL.value,
+                origin: checkedBoxes(form.origin),
+                lastGameDate: parseDate(form.lastGameDate.value),
+                dateOfBirth: parseDate(form.dateOfBirth.value),
+                gameData: JSON.parse(form.gameData.value || '{}')
+            })
+                .then(function (response) {
+                    console.log('DEMO SERVER', response);
+                })
+                .catch(function (error) {
+                    console.log('DEMO SERVER', error);
+                });
+        }
+        function applyAndRefresh() {
+            submitForm()
+                .then(() => {
+                    switchGame()
+                })
+
+        }
+
+        function checkedBoxes(checkboxes) {
+            return Array.from(checkboxes).filter(checkbox => checkbox.checked).map(checkbox => checkbox.value)
+        }
+        function checkBoxes(checkboxes, array) {
+            Array.from(checkboxes).forEach((checkbox, index) => {
+                checkbox.checked = array.findIndex(element => element === checkbox.value) !== -1
+            })
+        }
+        // parse a date time that can contains spaces, dashes, slashes, colons
+        function parseDate(input) {
+            // trimes and remove multiple spaces and split by expected characters
+            var parts = input.trim().replace(/ +(?= )/g, '').split(/[\s-\/:]/)
+            // new Date(year, month [, day [, hours[, minutes[, seconds[, ms]]]]])
+            return new Date(parts[0], parts[1] - 1, parts[2] || 1, parts[3] || 0, parts[4] || 0, parts[5] || 0); // Note: months are 0-based
+        }
+        function formatDate(string) {
+            if (!string) return null
+            const d = new Date(string)
+            // padded by zero
+            var datestring =
+                d.getFullYear() + "/" +
+                ("0" + (d.getMonth() + 1)).slice(-2) + "/" +
+                ("0" + d.getDate()).slice(-2) + " " +
+                ("0" + d.getHours()).slice(-2) + ":" +
+                ("0" + d.getMinutes()).slice(-2) + ":" +
+                ("0" + d.getSeconds()).slice(-2);
+
+            // 1439/26/09 09:50:00
+            return datestring
+        }
+
+        function postData(url, data){
+            let fetchData = {
+                method: 'POST',
+                body: JSON.stringify(data),
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            }
+            return fetch(url, fetchData)
+        }
+
+        var form = document.getElementById('form')
+        var iframe = document.getElementById('iframe')
+        var iframeForm = document.getElementById('iframeForm')
+        form.addEventListener('submit', submitForm)
+        iframeForm.addEventListener('submit', switchGame)
+        iframe.onload = inject
+    </script>
+</body>
+
+</html>
